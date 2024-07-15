@@ -1,8 +1,10 @@
 import corner
 import emcee
+import matplotlib.pyplot as plt
 import numpy as np
 import scipy as sp
 
+plt.style.use("project.mplstyle")
 np.random.seed(42)
 
 """
@@ -47,7 +49,7 @@ def prior(theta):
     """
     log of prior probability distribution: P(theta)
     """
-    if (0 < theta[0] < 5) and (0 < theta[1] < 10) and (-10 < theta[2] < 1):
+    if (-5 < theta[0] < 5) and (0 < theta[1] < 10) and (-10 < theta[2] < 1):
         return 0
     return -np.inf
 
@@ -67,7 +69,7 @@ class Posterior:
 
 # Set true parameters and generate data
 f = 0.5
-theta_true = np.array([1, 5, np.log(f)])
+theta_true = np.array([-0.5, 5, np.log(f)])
 print("True values: ", theta_true)
 sigma_meas = 0.2
 N = 50
@@ -79,7 +81,7 @@ def cost_function(*args):
     return -likelihood(*args)
 
 
-theta0 = np.array([0.8, 4.8, np.log(0.1)])  # random initial guess
+theta0 = np.array([-0.4, 4.8, np.log(0.1)])  # random initial guess
 MLE = sp.optimize.minimize(cost_function, theta0, args=(data, sigma_meas))
 theta_mle = MLE.x
 print("MLE : ", theta_mle)
@@ -90,13 +92,59 @@ post = Posterior(data, sigma_meas)
 # Initialize the number of chains
 n_walkers = 32
 n_dim = len(theta_true)
-theta0 = theta_mle + np.random.rand(n_walkers, n_dim)
+theta0 = theta_mle + 0.4 * np.random.rand(n_walkers, n_dim)
 # Run the MCMC to get posterior samples
 sampler = emcee.EnsembleSampler(n_walkers, n_dim, post)
-sampler.run_mcmc(theta0, 5000, progress=True)
+sampler.run_mcmc(theta0, 10000, progress=True)
 # Flatten the chains, and thin them out
-flat_samples = sampler.get_chain(discard=300, thin=100, flat=True)
+flat_samples = sampler.get_chain(discard=1000, thin=200, flat=True)
 
 # Plot the posterior
 fig = corner.corner(flat_samples, labels=["$m$", "$b$", "$\log(f)$"], truths=theta_true)
 fig.savefig("posterior_joint.pdf")
+
+## Data plots and posterior predictive checks
+plt.figure()
+rand_sample_idx = np.random.randint(len(flat_samples), size=100)
+label_set = False
+for i in rand_sample_idx:
+    theta_s = flat_samples[i]
+    if label_set:
+        plt.plot(
+            data[:, 0],
+            linear_model(theta_s, data[:, 0]),
+            alpha=0.1,
+            color="grey",
+            ls="solid",
+        )
+    else:
+        label_set = True
+        plt.plot(
+            data[:, 0],
+            linear_model(theta_s, data[:, 0]),
+            alpha=0.1,
+            color="grey",
+            label="posterior",
+            ls="solid",
+        )
+plt.errorbar(
+    data[:, 0],
+    data[:, 1],
+    ls="none",
+    marker="o",
+    yerr=sigma_meas,
+    capsize=0,
+    label="noisy data",
+    ms=2,
+)
+plt.plot(data[:, 0], linear_model(theta_true, data[:, 0]), ls="dotted", label="truth")
+plt.plot(
+    data[:, 0],
+    linear_model(theta_mle, data[:, 0]),
+    ls="dashed",
+    label="MLE",
+)
+plt.xlabel(r"$x$")
+plt.ylabel(r"$y$")
+plt.legend(loc="best")
+plt.savefig("posterior_predictive.pdf")
