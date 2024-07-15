@@ -21,6 +21,10 @@ ruff = "^0.5.1"
 isort = "^5.13.2"
 black = "^24.4.2"
 
+
+[tool.poetry.group.extras.dependencies]
+tqdm = "^4.66.4"
+
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
