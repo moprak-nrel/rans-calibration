@@ -3,6 +3,7 @@ import emcee
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy as sp
+from matplotlib.backends.backend_pdf import PdfPages
 
 plt.style.use("project.mplstyle")
 np.random.seed(42)
@@ -99,52 +100,58 @@ sampler.run_mcmc(theta0, 10000, progress=True)
 # Flatten the chains, and thin them out
 flat_samples = sampler.get_chain(discard=1000, thin=200, flat=True)
 
-# Plot the posterior
-fig = corner.corner(flat_samples, labels=["$m$", "$b$", "$\log(f)$"], truths=theta_true)
-fig.savefig("posterior_joint.pdf")
+fig_name = "posterior.pdf"
+with PdfPages(fig_name) as pdf:
+    # Plot the posterior
+    fig = corner.corner(
+        flat_samples, labels=["$m$", "$b$", "$\log(f)$"], truths=theta_true
+    )
+    pdf.savefig(figure=fig)
 
-## Data plots and posterior predictive checks
-plt.figure()
-rand_sample_idx = np.random.randint(len(flat_samples), size=100)
-label_set = False
-for i in rand_sample_idx:
-    theta_s = flat_samples[i]
-    if label_set:
-        plt.plot(
-            data[:, 0],
-            linear_model(theta_s, data[:, 0]),
-            alpha=0.1,
-            color="grey",
-            ls="solid",
-        )
-    else:
-        label_set = True
-        plt.plot(
-            data[:, 0],
-            linear_model(theta_s, data[:, 0]),
-            alpha=0.1,
-            color="grey",
-            label="posterior",
-            ls="solid",
-        )
-plt.errorbar(
-    data[:, 0],
-    data[:, 1],
-    ls="none",
-    marker="o",
-    yerr=sigma_meas,
-    capsize=0,
-    label="noisy data",
-    ms=2,
-)
-plt.plot(data[:, 0], linear_model(theta_true, data[:, 0]), ls="dotted", label="truth")
-plt.plot(
-    data[:, 0],
-    linear_model(theta_mle, data[:, 0]),
-    ls="dashed",
-    label="MLE",
-)
-plt.xlabel(r"$x$")
-plt.ylabel(r"$y$")
-plt.legend(loc="best")
-plt.savefig("posterior_predictive.pdf")
+    ## Data plots and posterior predictive checks
+    plt.figure()
+    rand_sample_idx = np.random.randint(len(flat_samples), size=100)
+    label_set = False
+    for i in rand_sample_idx:
+        theta_s = flat_samples[i]
+        if label_set:
+            plt.plot(
+                data[:, 0],
+                linear_model(theta_s, data[:, 0]),
+                alpha=0.1,
+                color="grey",
+                ls="solid",
+            )
+        else:
+            label_set = True
+            plt.plot(
+                data[:, 0],
+                linear_model(theta_s, data[:, 0]),
+                alpha=0.1,
+                color="grey",
+                label="posterior",
+                ls="solid",
+            )
+    plt.errorbar(
+        data[:, 0],
+        data[:, 1],
+        ls="none",
+        marker="o",
+        yerr=sigma_meas,
+        capsize=0,
+        label="noisy data",
+        ms=2,
+    )
+    plt.plot(
+        data[:, 0], linear_model(theta_true, data[:, 0]), ls="dotted", label="truth"
+    )
+    plt.plot(
+        data[:, 0],
+        linear_model(theta_mle, data[:, 0]),
+        ls="dashed",
+        label="MLE",
+    )
+    plt.xlabel(r"$x$")
+    plt.ylabel(r"$y$")
+    plt.legend(loc="best")
+    pdf.savefig()
