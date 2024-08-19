@@ -2,9 +2,9 @@ import corner
 import emcee
 import matplotlib.pyplot as plt
 import numpy as np
-import scipy as sp
-import run_rans_nofcs as rr
 from matplotlib.backends.backend_pdf import PdfPages
+
+import run_rans_nofcs as rr
 
 plt.style.use("project.mplstyle")
 np.random.seed(42)
@@ -27,9 +27,9 @@ def linear_model(theta, x):
 def gen_data(theta, sigma):
     wake_stats = rr.run_rans(theta)
     nx, nf = wake_stats.shape
-    noise = np.random.randn(nx,nf-2) * sigma
+    noise = np.random.randn(nx, nf - 2) * sigma
     noisy_stats = wake_stats.copy()
-    noisy_stats[:,1:-1] += noise
+    noisy_stats[:, 1:-1] += noise
     return noisy_stats
 
 
@@ -37,8 +37,12 @@ def likelihood(theta, data, sigma):
     """
     log of the likelihood function: P(data|theta)
     """
-    obs = rr.run_rans(theta)
-    return -0.5 * np.sum((obs - data) ** 2)/sigma**2
+    try:
+        obs = rr.run_rans(theta)
+        llhood = -0.5 * np.sum((obs - data) ** 2) / sigma**2
+    except Exception:
+        llhood = -np.inf
+    return llhood
 
 
 def prior(theta):
@@ -76,7 +80,7 @@ def cost_function(*args):
     return -likelihood(*args)
 
 
-theta0 = [5.48**(-2), 1.176, 1.92]
+theta0 = [5.48 ** (-2), 1.176, 1.92]
 # MLE = sp.optimize.minimize(cost_function, theta0, args=(data, sigma_meas))
 # theta_mle = MLE.x
 # print("MLE : ", theta_mle)
@@ -90,7 +94,7 @@ n_dim = len(theta_true)
 theta0 = theta0 + 0.01 * np.random.rand(n_walkers, n_dim)
 # Run the MCMC to get posterior samples
 sampler = emcee.EnsembleSampler(n_walkers, n_dim, post)
-sampler.run_mcmc(theta0, 100, progress=True)
+sampler.run_mcmc(theta0, 1000, progress=True)
 # Flatten the chains, and thin them out
 flat_samples = sampler.get_chain(discard=0, thin=10, flat=True)
 
