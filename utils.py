@@ -1,6 +1,8 @@
 from glob import glob
 
 import numpy as np
+from matplotlib import pyplot as plt
+from matplotlib.backends.backend_pdf import PdfPages
 from scipy.signal import savgol_filter
 
 import SANDLST
@@ -9,10 +11,10 @@ import SANDRANS
 
 # Gather QOIs from LES
 def read_les_data(path, case):
-    wake_files = glob(f'{path}/{case}*thickness*')
+    wake_files = glob(f"{path}/{case}*thickness*")
     wake_stats_les = None
     for wf in wake_files:
-        thicknessdata = np.loadtxt(wf, skiprows=1, delimiter=',')
+        thicknessdata = np.loadtxt(wf, skiprows=1, delimiter=",")
         if wake_stats_les is None:
             wake_stats_les = thicknessdata
         else:
@@ -20,26 +22,31 @@ def read_les_data(path, case):
 
     # Read initial profiles from LES
     vfile = f"{path}/{case}_YZwake1_rprofile_0.csv"
-    vdata = np.loadtxt(vfile,skiprows=1,delimiter=',')
+    vdata = np.loadtxt(vfile, skiprows=1, delimiter=",")
     return wake_stats_les, vdata
 
+
 # Smooth the velocity profile
-def smooth_u(v, N, lclip, order = 5):
+def smooth_u(v, N, lclip, order=5):
     v_mod = np.zeros(N)
-    v_mod[:len(v)] = v
+    v_mod[: len(v)] = v
     v_mod[:lclip] = v_mod[lclip]
     rclip = np.argmax(v_mod)
-    v_mod[rclip:]= v_mod[rclip]
+    v_mod[rclip:] = v_mod[rclip]
     return savgol_filter(v_mod, order, 3)
+
 
 # Smooth the tke profile
 def smooth_k(k, N, lclip):
     k_mod = np.zeros(N)
-    k_mod[:len(k)] = k
+    k_mod[: len(k)] = k
     k_mod[:lclip] = k_mod[lclip]
-    rclip = lclip + (len(k) - lclip)//2+ np.argmin(k[lclip+(len(k)-lclip)//2:])
+    rclip = (
+        lclip + (len(k) - lclip) // 2 + np.argmin(k[lclip + (len(k) - lclip) // 2 :])
+    )
     k_mod[rclip:] = k[rclip]
     return savgol_filter(k_mod, 5, 3)
+
 
 # Setup RANS and run with the velocity/tke profiles from data
 def run_rans(Uinit, kinit, calib_params, rvec, dx=10, Nsteps=250):
@@ -119,3 +126,72 @@ def run_rans(Uinit, kinit, calib_params, rvec, dx=10, Nsteps=250):
         wake_stats[i, 3] = np.min(uarrayNOFCS[idx, :])  # center line velocity
     results = {"wake_stats": wake_stats, "u": uarrayNOFCS, "k": karrayNOFCS}
     return results
+
+
+def plot_qoi_variation(qois, labels, fig_name, wake_stats_les, diameter=240):
+    color_list = plt.cm.viridis(np.linspace(0, 1, len(qois)))
+    with PdfPages(fig_name) as pdf:
+        plt.figure()
+        for i, qoi in enumerate(qois):
+            c = color_list[i]
+            wake_stats = qoi
+            if wake_stats is None:
+                continue
+            plt.plot(
+                wake_stats[:, 0] / diameter,
+                wake_stats[:, 1] * 2 * np.pi,
+                label=labels[i],
+                c=c,
+                ls="solid",
+            )
+        plt.plot(
+            (wake_stats_les[:, 0] - 1200) / diameter,
+            wake_stats_les[:, 1],
+            label="LES",
+            color="k",
+            alpha=0.5,
+            ls="dotted",
+        )
+        plt.legend()
+        plt.xlabel("x/D")
+        plt.ylabel(r"Displacement Thickness ($m^2$)")
+        pdf.savefig()
+
+        plt.figure()
+        for i, qoi in enumerate(qois):
+            c = color_list[i]
+            wake_stats = qoi
+            if wake_stats is None:
+                continue
+            plt.plot(
+                wake_stats[:, 0] / diameter,
+                wake_stats[:, 2] * 2 * np.pi,
+                label=labels[i],
+                c=c,
+                ls="solid",
+            )
+        plt.plot(
+            (wake_stats_les[:, 0] - 1200) / diameter,
+            wake_stats_les[:, 2],
+            label="LES",
+            color="k",
+            alpha=0.5,
+            ls="dotted",
+        )
+        plt.legend()
+        plt.xlabel("x/D")
+        plt.ylabel(r"Momentum Thickness ($m^2$)")
+        pdf.savefig()
+
+
+def run_rans_samples(Uinit, kinit, param_array, rvec):
+    qois = []
+    for i, params in enumerate(param_array):
+        try:
+            print(f"Running RANS with parameters: {params}")
+            res = run_rans(Uinit, kinit, params, rvec)
+            qois.append(res["wake_stats"])
+        except Exception:
+            print(f"Failed for parameters: {params}")
+            qois.append(None)
+    return qois
