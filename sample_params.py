@@ -7,7 +7,7 @@ import utils
 plt.style.use("project.mplstyle")
 
 # Read profile data from postprocessed data
-dpath = "/Users/pmohan/flowmas/SANDwake/RANSCalibration/Data"
+dpath = "Data"
 rp = "MedWSLowTI"
 
 wake_stats_les, vdata = utils.read_les_data(dpath, rp)
@@ -88,4 +88,4 @@ labels = [
 ]
 
 qois = utils.run_rans_samples(Uinit, kinit, params_list, rvec)
-utils.plot_qoi_variation(qois, labels, "params_samples.pdf", wake_stats_les)
+utils.plot_qoi_variation(qois, labels, "params_samples.pdf", wake_stats_les, False)

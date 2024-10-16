@@ -128,7 +128,9 @@ def run_rans(Uinit, kinit, calib_params, rvec, dx=10, Nsteps=250):
     return results
 
 
-def plot_qoi_variation(qois, labels, fig_name, wake_stats_les, diameter=240):
+def plot_qoi_variation(
+    qois, labels, fig_name, wake_stats_les, legend=True, diameter=240
+):
     color_list = plt.cm.viridis(np.linspace(0, 1, len(qois)))
     with PdfPages(fig_name) as pdf:
         plt.figure()
@@ -152,9 +154,11 @@ def plot_qoi_variation(qois, labels, fig_name, wake_stats_les, diameter=240):
             alpha=0.5,
             ls="dotted",
         )
-        plt.legend()
+        if legend:
+            plt.legend()
         plt.xlabel("x/D")
         plt.ylabel(r"Displacement Thickness ($m^2$)")
+        plt.ylim(wake_stats_les[:, 1].min() * 0.9, wake_stats_les[:, 1].max() * 1.1)
         pdf.savefig()
 
         plt.figure()
@@ -178,9 +182,11 @@ def plot_qoi_variation(qois, labels, fig_name, wake_stats_les, diameter=240):
             alpha=0.5,
             ls="dotted",
         )
-        plt.legend()
+        if legend:
+            plt.legend()
         plt.xlabel("x/D")
         plt.ylabel(r"Momentum Thickness ($m^2$)")
+        plt.ylim(wake_stats_les[:, 2].min() * 0.9, wake_stats_les[:, 2].max() * 1.1)
         pdf.savefig()
 
 
